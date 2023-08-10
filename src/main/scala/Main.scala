@@ -113,7 +113,9 @@ object Main extends App {
   }
 
 
-  val reviews = sc.textFile("sample_us.tsv")
+//  val reviews = sc.textFile("sample_us.tsv")
+  val reviews = sc.textFile("amazon_reviews_us_Camera_v1_00.tsv")
+
 //  val rev = reviews.take(10)
 //  rev.foreach(println)
   // Dropping the header
@@ -343,13 +345,13 @@ object Main extends App {
   }
 
 
-  val data_test = sc.parallelize(Array[Review](
-    Review("low", "long", true, true, "Helpful"),
-    Review("high", "short", false, true, "Helpful"),
-    Review("low", "long", true, false, "Not Helpful"),
-    Review("high", "long", false, false, "Not Helpful"),
-    Review("low", "short", false, true, "Helpful")
-  ))
+//  val data_test = sc.parallelize(Array[Review](
+//    Review("low", "long", true, true, "Helpful"),
+//    Review("high", "short", false, true, "Helpful"),
+//    Review("low", "long", true, false, "Not Helpful"),
+//    Review("high", "long", false, false, "Not Helpful"),
+//    Review("low", "short", false, true, "Helpful")
+//  ))
 
 
 //  val target_id3 = "helpful_vote"
@@ -378,14 +380,24 @@ object Main extends App {
   val threshold = 2
    val decisionTree = ID3(trainReviewsRDD, target_id3, attributes, threshold)
 
-  // Predicting results for all reviews in the test data
-  val results = testReviewsRDD.map(review => decisionTree.predict(review))
+  // Making predictions on the test data
+  val predictionsRDD = testReviewsRDD.map(review => decisionTree.predict(review))
 
   // Collect results to the driver node
-  val collectedResults = results.collect()
+  val collectedResults = predictionsRDD.collect()
 
   // Print the results
   collectedResults.foreach(println)
+
+
+  // Zipping the true values and predictions
+  val trueValuesAndPredictions = testReviewsRDD.map(_.helpful_vote).zip(predictionsRDD)
+
+  // Calculating accuracy
+  val correctPredictionsCount = trueValuesAndPredictions.filter { case (trueValue, prediction) => trueValue == prediction }.count
+  val accuracy = correctPredictionsCount.toDouble / testReviewsRDD.count
+
+  println(s"Accuracy: $accuracy")
 
 
 }
