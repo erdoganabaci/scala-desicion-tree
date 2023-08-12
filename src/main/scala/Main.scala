@@ -60,7 +60,6 @@ case class DecisionTree(targetAttribute: String) {
     val tree = subTrees(attributeValue)
     tree.predict(review)
   }
-
 }
 
 class LeafTree(value: String) extends DecisionTree(value) {
@@ -114,14 +113,21 @@ object Main extends App {
 
 
 //  val reviews = sc.textFile("sample_us.tsv")
-  val reviews = sc.textFile("amazon_reviews_us_Camera_v1_00.tsv")
+//  val reviews = sc.textFile("amazon_reviews_us_Camera_v1_00.tsv")
+//val reviews = sc.textFile("/data/amazon/amazon_reviews_us_Camera_v1_00.tsv")
+//  val reviews = sc.textFile("/data/amazon/amazon_reviews_us_Baby_v1_00.tsv")
+//  val reviews = sc.textFile("/data/amazon/amazon_reviews_us_Gift_Card_v1_00.tsv")
+//  val reviews = sc.textFile("/data/amazon/amazon_reviews_us_PC_v1_00.tsv")
+  val reviews = sc.textFile("/data/amazon/amazon_reviews_us_Sports_v1_00.tsv")
 
-//  val rev = reviews.take(10)
+  //  val rev = reviews.take(10)
 //  rev.foreach(println)
   // Dropping the header
-  val header = reviews.first()
-  println("here header",header)
-  val reviewsWithoutHeader = reviews.filter(row => row != header)
+//  val header = reviews.first()
+//  println("here header",header)
+//  val reviewsWithoutHeader = reviews.filter(row => row != header)
+  val reviewsWithIndex = reviews.zipWithIndex()
+  val reviewsWithoutHeader = reviewsWithIndex.filter { case (_, index) => index != 0 }.map(_._1)
 
   // Now parse the reviews
   val parsedReviews = reviewsWithoutHeader.map(parseReview)
@@ -381,7 +387,10 @@ object Main extends App {
    val decisionTree = ID3(trainReviewsRDD, target_id3, attributes, threshold)
 
   // Making predictions on the test data
-  val predictionsRDD = testReviewsRDD.map(review => decisionTree.predict(review))
+//  val predictionsRDD = testReviewsRDD.map(review => decisionTree.predict(review))
+  val predictionsRDD = testReviewsRDD
+  .filter(review => review != null) // Filtering out null values
+  .map(review => decisionTree.predict(review))
 
   // Collect results to the driver node
   val collectedResults = predictionsRDD.collect()

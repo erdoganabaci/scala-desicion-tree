@@ -5,3 +5,5 @@ project
 target
 baby.tsv
 amazon_reviews_us_Camera_v1_00.tsv
+src/main/scala/MainCleaned.scala
+out
