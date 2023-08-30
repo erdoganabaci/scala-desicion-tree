@@ -1,0 +1,277 @@
+<html>
+<head>
+<title>Main.scala</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #7a7e85;}
+.s5 { color: #2aacb8;}
+.s6 { color: #00b8bb; font-weight: bold;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+Main.scala</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">org</span><span class="s2">.</span><span class="s1">apache</span><span class="s2">.</span><span class="s1">spark</span><span class="s2">.</span><span class="s1">SparkConf</span>
+<span class="s0">import </span><span class="s1">org</span><span class="s2">.</span><span class="s1">apache</span><span class="s2">.</span><span class="s1">spark</span><span class="s2">.</span><span class="s1">sql</span><span class="s2">.</span><span class="s1">SparkSession</span>
+<span class="s0">import </span><span class="s1">org</span><span class="s2">.</span><span class="s1">apache</span><span class="s2">.</span><span class="s1">spark</span><span class="s2">.</span><span class="s1">rdd</span><span class="s2">.</span><span class="s1">RDD</span>
+<span class="s0">import </span><span class="s1">scala</span><span class="s2">.</span><span class="s1">math</span><span class="s2">.</span><span class="s1">log</span>
+<span class="s0">import </span><span class="s1">java</span><span class="s2">.</span><span class="s1">nio</span><span class="s2">.</span><span class="s1">file</span><span class="s2">.{</span><span class="s1">Paths</span><span class="s2">, </span><span class="s1">Files</span><span class="s2">}</span>
+<span class="s0">import </span><span class="s1">java</span><span class="s2">.</span><span class="s1">nio</span><span class="s2">.</span><span class="s1">charset</span><span class="s2">.</span><span class="s1">StandardCharsets</span>
+
+<span class="s0">object </span><span class="s1">Utils </span><span class="s2">{</span>
+  <span class="s0">def </span><span class="s1">getAttribute</span><span class="s2">(</span><span class="s1">review: Review</span><span class="s2">, </span><span class="s1">target: String</span><span class="s2">)</span><span class="s1">: String </span><span class="s2">= </span><span class="s1">target </span><span class="s0">match </span><span class="s2">{</span>
+    <span class="s0">case </span><span class="s3">&quot;star_rating&quot; </span><span class="s2">=&gt; </span><span class="s1">review</span><span class="s2">.</span><span class="s1">star_rating</span>
+    <span class="s0">case </span><span class="s3">&quot;helpful_vote&quot; </span><span class="s2">=&gt; </span><span class="s1">review</span><span class="s2">.</span><span class="s1">helpful_vote</span>
+    <span class="s0">case </span><span class="s3">&quot;review_length&quot; </span><span class="s2">=&gt; </span><span class="s1">review</span><span class="s2">.</span><span class="s1">review_length</span>
+    <span class="s0">case </span><span class="s3">&quot;vine&quot; </span><span class="s2">=&gt; </span><span class="s1">review</span><span class="s2">.</span><span class="s1">vine</span><span class="s2">.</span><span class="s1">toString</span>
+    <span class="s0">case </span><span class="s3">&quot;verified_purchase&quot; </span><span class="s2">=&gt; </span><span class="s1">review</span><span class="s2">.</span><span class="s1">verified_purchase</span><span class="s2">.</span><span class="s1">toString</span>
+    <span class="s0">case </span><span class="s1">_ </span><span class="s2">=&gt; </span><span class="s0">throw new </span><span class="s1">IllegalArgumentException</span><span class="s2">(</span><span class="s3">&quot;Invalid target attribute&quot;</span><span class="s2">)</span>
+  <span class="s2">}</span>
+
+  <span class="s4">// Possible values for each attribute</span>
+  <span class="s0">def </span><span class="s1">possibleValues</span><span class="s2">(</span><span class="s1">attribute: String</span><span class="s2">)</span><span class="s1">: Array</span><span class="s2">[</span><span class="s1">String</span><span class="s2">] = {</span>
+    <span class="s1">attribute </span><span class="s0">match </span><span class="s2">{</span>
+      <span class="s0">case </span><span class="s3">&quot;star_rating&quot; </span><span class="s2">=&gt; </span><span class="s1">Array</span><span class="s2">(</span><span class="s3">&quot;low&quot;</span><span class="s2">, </span><span class="s3">&quot;high&quot;</span><span class="s2">)</span>
+      <span class="s0">case </span><span class="s3">&quot;review_length&quot; </span><span class="s2">=&gt; </span><span class="s1">Array</span><span class="s2">(</span><span class="s3">&quot;short&quot;</span><span class="s2">, </span><span class="s3">&quot;long&quot;</span><span class="s2">)</span>
+      <span class="s0">case </span><span class="s3">&quot;vine&quot; </span><span class="s2">=&gt; </span><span class="s1">Array</span><span class="s2">(</span><span class="s3">&quot;true&quot;</span><span class="s2">, </span><span class="s3">&quot;false&quot;</span><span class="s2">)</span>
+      <span class="s0">case </span><span class="s3">&quot;verified_purchase&quot; </span><span class="s2">=&gt; </span><span class="s1">Array</span><span class="s2">(</span><span class="s3">&quot;true&quot;</span><span class="s2">, </span><span class="s3">&quot;false&quot;</span><span class="s2">)</span>
+      <span class="s0">case </span><span class="s3">&quot;helpful_vote&quot; </span><span class="s2">=&gt; </span><span class="s1">Array</span><span class="s2">(</span><span class="s3">&quot;Helpful&quot;</span><span class="s2">, </span><span class="s3">&quot;Not Helpful&quot;</span><span class="s2">)</span>
+      <span class="s0">case </span><span class="s1">_ </span><span class="s2">=&gt; </span><span class="s1">Array</span><span class="s2">() </span><span class="s4">//empty array, attribute is not recognized</span>
+    <span class="s2">}</span>
+  <span class="s2">}</span>
+
+<span class="s2">}</span>
+
+<span class="s0">case class </span><span class="s1">Review</span><span class="s2">(</span>
+                   <span class="s1">star_rating: String</span><span class="s2">,</span>
+                   <span class="s1">review_length: String</span><span class="s2">,</span>
+                   <span class="s1">vine: Boolean</span><span class="s2">,</span>
+                   <span class="s1">verified_purchase: Boolean</span><span class="s2">,</span>
+                   <span class="s1">helpful_vote: String</span><span class="s2">,</span>
+                 <span class="s2">)</span>
+
+
+<span class="s4">// Defining function to get attribute from Review object based on target</span>
+
+<span class="s0">case class </span><span class="s1">DecisionTree</span><span class="s2">(</span><span class="s1">targetAttribute: String</span><span class="s2">) {</span>
+  <span class="s0">var </span><span class="s1">subTrees: Map</span><span class="s2">[</span><span class="s1">String</span><span class="s2">, </span><span class="s1">DecisionTree</span><span class="s2">] = </span><span class="s1">Map</span><span class="s2">()</span>
+
+  <span class="s0">def </span><span class="s1">addSubTree</span><span class="s2">(</span><span class="s1">value: String</span><span class="s2">, </span><span class="s1">subTree: DecisionTree</span><span class="s2">)</span><span class="s1">: Unit </span><span class="s2">= {</span>
+    <span class="s1">subTrees += </span><span class="s2">(</span><span class="s1">value -&gt; subTree</span><span class="s2">)</span>
+  <span class="s2">}</span>
+
+
+  <span class="s0">override def </span><span class="s1">toString</span><span class="s2">()</span><span class="s1">: String </span><span class="s2">= {</span>
+    <span class="s0">var </span><span class="s1">stringRepresentation </span><span class="s2">= </span><span class="s3">&quot;</span><span class="s0">\n </span><span class="s3">DecisionTree(&quot;</span>
+    <span class="s0">for </span><span class="s2">((</span><span class="s1">value</span><span class="s2">, </span><span class="s1">subTree</span><span class="s2">) </span><span class="s1">&lt;- subTrees</span><span class="s2">) {</span>
+      <span class="s1">stringRepresentation +=  </span><span class="s3">&quot;</span><span class="s0">\t</span><span class="s3">&quot; </span><span class="s1">+ targetAttribute + </span><span class="s3">&quot; = &quot; </span><span class="s1">+ value + </span><span class="s3">&quot; : &quot; </span><span class="s1">+ subTree</span><span class="s2">.</span><span class="s1">toString</span><span class="s2">() </span><span class="s1">+ </span><span class="s3">&quot; )</span><span class="s0">\n</span><span class="s3">&quot;</span>
+    <span class="s2">}</span>
+    <span class="s1">stringRepresentation</span>
+  <span class="s2">}</span>
+
+  <span class="s0">def </span><span class="s1">predict</span><span class="s2">(</span><span class="s1">review: Review</span><span class="s2">)</span><span class="s1">: String </span><span class="s2">= {</span>
+    <span class="s0">val </span><span class="s1">attributeValue </span><span class="s2">= </span><span class="s1">Utils</span><span class="s2">.</span><span class="s1">getAttribute</span><span class="s2">(</span><span class="s1">review</span><span class="s2">, </span><span class="s1">targetAttribute</span><span class="s2">)</span>
+    <span class="s0">val </span><span class="s1">tree </span><span class="s2">= </span><span class="s1">subTrees</span><span class="s2">(</span><span class="s1">attributeValue</span><span class="s2">)</span>
+    <span class="s1">tree</span><span class="s2">.</span><span class="s1">predict</span><span class="s2">(</span><span class="s1">review</span><span class="s2">)</span>
+  <span class="s2">}</span>
+<span class="s2">}</span>
+
+<span class="s0">class </span><span class="s1">LeafTree</span><span class="s2">(</span><span class="s1">value: String</span><span class="s2">) </span><span class="s0">extends </span><span class="s1">DecisionTree</span><span class="s2">(</span><span class="s1">value</span><span class="s2">) {</span>
+  <span class="s0">override def </span><span class="s1">toString</span><span class="s2">()</span><span class="s1">: String </span><span class="s2">= </span><span class="s3">&quot;LeafTree: &quot;</span><span class="s1">+ value</span>
+
+  <span class="s0">override def </span><span class="s1">predict</span><span class="s2">(</span><span class="s1">review: Review</span><span class="s2">)</span><span class="s1">: String </span><span class="s2">= </span><span class="s1">value</span>
+<span class="s2">}</span>
+
+
+
+<span class="s0">object </span><span class="s1">Main </span><span class="s0">extends </span><span class="s1">App </span><span class="s2">{</span>
+  <span class="s0">type </span><span class="s1">AttributeId </span><span class="s2">= </span><span class="s1">String</span>
+
+  <span class="s0">var </span><span class="s1">conf </span><span class="s2">= </span><span class="s0">new </span><span class="s1">SparkConf</span><span class="s2">() </span><span class="s4">// Spark configuration</span>
+    <span class="s2">.</span><span class="s1">setAppName</span><span class="s2">(</span><span class="s3">&quot;Erdogan decision tree project&quot;</span><span class="s2">) </span><span class="s4">// Application name</span>
+    <span class="s2">.</span><span class="s1">setMaster</span><span class="s2">(</span><span class="s3">&quot;local[4]&quot;</span><span class="s2">) </span><span class="s4">// Acts as a master node with 4 thread</span>
+    <span class="s0">val </span><span class="s1">spark </span><span class="s2">= </span><span class="s1">SparkSession</span><span class="s2">.</span><span class="s1">builder</span><span class="s2">().</span><span class="s1">config</span><span class="s2">(</span><span class="s1">conf</span><span class="s2">).</span><span class="s1">getOrCreate</span><span class="s2">()</span>
+    <span class="s0">val </span><span class="s1">sc </span><span class="s2">= </span><span class="s1">spark</span><span class="s2">.</span><span class="s1">sparkContext</span>
+
+  <span class="s4">// Convert continuous to discrete values</span>
+  <span class="s0">def </span><span class="s1">parseReview</span><span class="s2">(</span><span class="s1">review: String</span><span class="s2">)</span><span class="s1">: Review </span><span class="s2">= {</span>
+    <span class="s0">val </span><span class="s1">parts </span><span class="s2">= </span><span class="s1">review</span><span class="s2">.</span><span class="s1">split</span><span class="s2">(</span><span class="s3">&quot;</span><span class="s0">\t</span><span class="s3">&quot;</span><span class="s2">) </span><span class="s4">// split the line on the tab character</span>
+    <span class="s4">// Construct a Review object from the parts</span>
+    <span class="s1">Review</span><span class="s2">(</span>
+      <span class="s0">if </span><span class="s2">(</span><span class="s1">parts</span><span class="s2">(</span><span class="s5">7</span><span class="s2">).</span><span class="s1">toInt &lt; </span><span class="s5">3</span><span class="s2">) </span><span class="s3">&quot;low&quot; </span><span class="s0">else </span><span class="s3">&quot;high&quot;</span><span class="s2">, </span><span class="s4">// star_rating is the 8th field in the row</span>
+      <span class="s0">if </span><span class="s2">(</span><span class="s1">parts</span><span class="s2">(</span><span class="s5">13</span><span class="s2">).</span><span class="s1">length &lt; </span><span class="s5">200</span><span class="s2">) </span><span class="s3">&quot;short&quot; </span><span class="s0">else </span><span class="s3">&quot;long&quot;</span><span class="s2">, </span><span class="s4">// review_length</span>
+      <span class="s0">if </span><span class="s2">(</span><span class="s1">parts</span><span class="s2">(</span><span class="s5">10</span><span class="s2">) </span><span class="s1">== </span><span class="s3">&quot;Y&quot;</span><span class="s2">) </span><span class="s0">true else false</span><span class="s2">, </span><span class="s4">// vine is the 11th field in the row</span>
+      <span class="s0">if </span><span class="s2">(</span><span class="s1">parts</span><span class="s2">(</span><span class="s5">11</span><span class="s2">) </span><span class="s1">== </span><span class="s3">&quot;Y&quot;</span><span class="s2">) </span><span class="s0">true else false</span><span class="s2">, </span><span class="s4">// verified_purchase is the 12th field in the row,</span>
+      <span class="s0">if </span><span class="s2">(</span><span class="s1">parts</span><span class="s2">(</span><span class="s5">8</span><span class="s2">).</span><span class="s1">toInt &gt; </span><span class="s5">0</span><span class="s2">) </span><span class="s3">&quot;Helpful&quot; </span><span class="s0">else </span><span class="s3">&quot;Not Helpful&quot; </span><span class="s4">// helpful_vote is the 9th field in the row</span>
+    <span class="s2">)</span>
+  <span class="s2">}</span>
+
+
+<span class="s4">//  val reviews = sc.textFile(&quot;sample_us.tsv&quot;)</span>
+  <span class="s0">val </span><span class="s1">reviews </span><span class="s2">= </span><span class="s1">sc</span><span class="s2">.</span><span class="s1">textFile</span><span class="s2">(</span><span class="s3">&quot;amazon_reviews_us_Camera_v1_00.tsv&quot;</span><span class="s2">)</span>
+  <span class="s0">val </span><span class="s1">reviewsWithIndex </span><span class="s2">= </span><span class="s1">reviews</span><span class="s2">.</span><span class="s1">zipWithIndex</span><span class="s2">()</span>
+  <span class="s0">val </span><span class="s1">reviewsWithoutHeader </span><span class="s2">= </span><span class="s1">reviewsWithIndex</span><span class="s2">.</span><span class="s1">filter </span><span class="s2">{ </span><span class="s0">case </span><span class="s2">(</span><span class="s1">_</span><span class="s2">, </span><span class="s1">index</span><span class="s2">) =&gt; </span><span class="s1">index != </span><span class="s5">0 </span><span class="s2">}.</span><span class="s1">map</span><span class="s2">(</span><span class="s1">_</span><span class="s2">.</span><span class="s1">_1</span><span class="s2">)</span>
+
+  <span class="s0">val </span><span class="s1">parsedReviews </span><span class="s2">= </span><span class="s1">reviewsWithoutHeader</span><span class="s2">.</span><span class="s1">map</span><span class="s2">(</span><span class="s1">parseReview</span><span class="s2">)</span>
+  <span class="s1">parsedReviews</span><span class="s2">.</span><span class="s1">take</span><span class="s2">(</span><span class="s5">50</span><span class="s2">).</span><span class="s1">foreach</span><span class="s2">(</span><span class="s1">println</span><span class="s2">)</span>
+
+    <span class="s0">def </span><span class="s1">entropy</span><span class="s2">(</span><span class="s1">data: RDD</span><span class="s2">[</span><span class="s1">Review</span><span class="s2">], </span><span class="s1">target: AttributeId</span><span class="s2">, </span><span class="s1">totalDataPoints: Long</span><span class="s2">)</span><span class="s1">: Double </span><span class="s2">= {</span>
+    <span class="s4">// Function to compute entropy</span>
+    <span class="s0">def </span><span class="s1">computeEntropy</span><span class="s2">(</span><span class="s1">count: Long</span><span class="s2">)</span><span class="s1">: Double </span><span class="s2">= {</span>
+      <span class="s0">val </span><span class="s1">proportion </span><span class="s2">= </span><span class="s1">count</span><span class="s2">.</span><span class="s1">toDouble / totalDataPoints</span><span class="s2">.</span><span class="s1">toDouble</span>
+      <span class="s1">-proportion * </span><span class="s2">(</span><span class="s1">math</span><span class="s2">.</span><span class="s1">log</span><span class="s2">(</span><span class="s1">proportion</span><span class="s2">) </span><span class="s1">/ math</span><span class="s2">.</span><span class="s1">log</span><span class="s2">(</span><span class="s5">2</span><span class="s2">))</span>
+    <span class="s2">}</span>
+    <span class="s4">// Creating a paired RDD</span>
+    <span class="s0">val </span><span class="s1">attributeCountsRDD </span><span class="s2">= </span><span class="s1">data</span><span class="s2">.</span><span class="s1">map</span><span class="s2">(</span><span class="s1">review </span><span class="s2">=&gt; (</span><span class="s1">Utils</span><span class="s2">.</span><span class="s1">getAttribute</span><span class="s2">(</span><span class="s1">review</span><span class="s2">,</span><span class="s1">target</span><span class="s2">), </span><span class="s5">1</span><span class="s2">)).</span><span class="s1">reduceByKey</span><span class="s2">(</span><span class="s1">_ + _</span><span class="s2">)</span>
+    <span class="s4">// Calculate entropy for each distinct attribute value and sum them up</span>
+    <span class="s0">val </span><span class="s1">mappingEntropy </span><span class="s2">= </span><span class="s1">attributeCountsRDD</span><span class="s2">.</span><span class="s1">map </span><span class="s2">{ </span><span class="s0">case </span><span class="s2">(</span><span class="s1">attribute</span><span class="s2">, </span><span class="s1">count</span><span class="s2">) =&gt; (</span><span class="s1">attribute</span><span class="s2">, </span><span class="s1">computeEntropy</span><span class="s2">(</span><span class="s1">count</span><span class="s2">)) }</span>
+    <span class="s0">val </span><span class="s1">totalEntropy </span><span class="s2">= </span><span class="s1">mappingEntropy</span><span class="s2">.</span><span class="s1">map </span><span class="s2">{ </span><span class="s0">case </span><span class="s2">(</span><span class="s1">_</span><span class="s2">, </span><span class="s1">entropy</span><span class="s2">) =&gt; </span><span class="s1">entropy </span><span class="s2">}.</span><span class="s1">sum</span><span class="s2">()</span>
+    <span class="s1">totalEntropy</span>
+  <span class="s2">}</span>
+
+  <span class="s0">val </span><span class="s1">totalDataPoints </span><span class="s2">= </span><span class="s1">parsedReviews</span><span class="s2">.</span><span class="s1">count</span><span class="s2">()</span>
+  <span class="s1">println</span><span class="s2">(</span><span class="s3">&quot;total data points &quot; </span><span class="s1">+totalDataPoints</span><span class="s2">)</span>
+  <span class="s0">val </span><span class="s1">targetEntropy </span><span class="s2">= </span><span class="s1">entropy</span><span class="s2">(</span><span class="s1">parsedReviews</span><span class="s2">, </span><span class="s3">&quot;review_length&quot;</span><span class="s2">, </span><span class="s1">totalDataPoints</span><span class="s2">)</span>
+  <span class="s1">println</span><span class="s2">(</span><span class="s3">&quot;Entropy of target attribute: &quot; </span><span class="s1">+ targetEntropy</span><span class="s2">)</span>
+
+  <span class="s4">// calculates the amount of information gained about the target attribute after performing a split on another attribute in a dataset.</span>
+  <span class="s0">def </span><span class="s1">IG</span><span class="s2">(</span><span class="s1">data: RDD</span><span class="s2">[</span><span class="s1">Review</span><span class="s2">], </span><span class="s1">target: String</span><span class="s2">, </span><span class="s1">attribute: String</span><span class="s2">, </span><span class="s1">initialEntropy: Double</span><span class="s2">)</span><span class="s1">: Double </span><span class="s2">= {</span>
+    <span class="s4">// Total number of data points</span>
+    <span class="s0">val </span><span class="s1">totalDataCount </span><span class="s2">= </span><span class="s1">data</span><span class="s2">.</span><span class="s1">count</span><span class="s2">().</span><span class="s1">toDouble</span>
+    <span class="s0">val </span><span class="s1">groupMapped </span><span class="s2">= </span><span class="s1">data</span><span class="s2">.</span><span class="s1">map</span><span class="s2">(</span><span class="s1">review </span><span class="s2">=&gt; ((</span><span class="s1">Utils</span><span class="s2">.</span><span class="s1">getAttribute</span><span class="s2">(</span><span class="s1">review</span><span class="s2">, </span><span class="s1">target</span><span class="s2">), </span><span class="s1">Utils</span><span class="s2">.</span><span class="s1">getAttribute</span><span class="s2">(</span><span class="s1">review</span><span class="s2">, </span><span class="s1">attribute</span><span class="s2">)), </span><span class="s5">1</span><span class="s2">))</span>
+    <span class="s4">// Cache the data for faster access in later computations because we are going to use groupedCounts RDD multiple times.</span>
+    <span class="s0">val </span><span class="s1">groupedCounts </span><span class="s2">= </span><span class="s1">groupMapped</span><span class="s2">.</span><span class="s1">reduceByKey</span><span class="s2">(</span><span class="s1">_ + _</span><span class="s2">).</span><span class="s1">persist</span><span class="s2">() </span><span class="s4">// This will be used multiple times</span>
+    <span class="s0">val </span><span class="s1">attributeValueMap </span><span class="s2">= </span><span class="s1">groupedCounts</span>
+      <span class="s2">.</span><span class="s1">map </span><span class="s2">{ </span><span class="s0">case </span><span class="s2">((</span><span class="s1">_</span><span class="s2">, </span><span class="s1">attributeValue</span><span class="s2">), </span><span class="s1">count</span><span class="s2">) =&gt; (</span><span class="s1">attributeValue</span><span class="s2">, </span><span class="s1">count</span><span class="s2">) }</span>
+    <span class="s4">// Aggregate the counts for each unique combination.</span>
+    <span class="s0">val </span><span class="s1">attributeValueCounts </span><span class="s2">= </span><span class="s1">attributeValueMap</span><span class="s2">.</span><span class="s1">reduceByKey</span><span class="s2">(</span><span class="s1">_ + _</span><span class="s2">)</span>
+    <span class="s0">val </span><span class="s1">entropyPerGroupMap </span><span class="s2">= </span><span class="s1">groupedCounts</span>
+      <span class="s2">.</span><span class="s1">map </span><span class="s2">{ </span><span class="s0">case </span><span class="s2">((</span><span class="s1">_</span><span class="s2">, </span><span class="s1">attributeValue</span><span class="s2">), </span><span class="s1">count</span><span class="s2">) =&gt;</span>
+        <span class="s0">val </span><span class="s1">proportion </span><span class="s2">= </span><span class="s1">count / totalDataCount</span>
+        <span class="s2">(</span><span class="s1">attributeValue</span><span class="s2">, </span><span class="s1">-proportion * log</span><span class="s2">(</span><span class="s1">proportion</span><span class="s2">) </span><span class="s1">/ log</span><span class="s2">(</span><span class="s5">2</span><span class="s2">))</span>
+      <span class="s2">}</span>
+    <span class="s0">val </span><span class="s1">entropyPerGroup </span><span class="s2">= </span><span class="s1">entropyPerGroupMap</span>
+      <span class="s2">.</span><span class="s1">reduceByKey</span><span class="s2">(</span><span class="s1">_ + _</span><span class="s2">) </span><span class="s4">// Summing up entropies for the same attribute value</span>
+    <span class="s0">val </span><span class="s1">entropyAfterSplit </span><span class="s2">= </span><span class="s1">entropyPerGroup</span>
+      <span class="s2">.</span><span class="s1">join</span><span class="s2">(</span><span class="s1">attributeValueCounts</span><span class="s2">) </span><span class="s4">// It will create RDD of type [(attributeValue, (entropy, attributeCount))]</span>
+      <span class="s2">.</span><span class="s1">map </span><span class="s2">{ </span><span class="s0">case </span><span class="s2">(</span><span class="s1">_</span><span class="s2">, (</span><span class="s1">entropy</span><span class="s2">, </span><span class="s1">attributeCount</span><span class="s2">)) =&gt;</span>
+        <span class="s1">entropy * attributeCount / totalDataCount</span>
+      <span class="s2">}</span>
+    <span class="s4">// Compute weighted sum of entropies (total entropy ,0.717983672393802)</span>
+    <span class="s0">val </span><span class="s1">totalEntropyAfterSplit </span><span class="s2">= </span><span class="s1">entropyAfterSplit</span><span class="s2">.</span><span class="s1">sum</span><span class="s2">()</span>
+    <span class="s4">// Information gain is the difference between initial and new entropy</span>
+    <span class="s0">val </span><span class="s1">informationGain </span><span class="s2">= </span><span class="s1">initialEntropy - totalEntropyAfterSplit</span>
+
+    <span class="s1">informationGain</span>
+  <span class="s2">}</span>
+
+  <span class="s0">val </span><span class="s1">target </span><span class="s2">= </span><span class="s3">&quot;helpful_vote&quot;</span>
+  <span class="s0">val </span><span class="s1">attribute </span><span class="s2">= </span><span class="s3">&quot;review_length&quot;</span>
+
+  <span class="s0">val </span><span class="s1">initialEntropy </span><span class="s2">= </span><span class="s1">entropy</span><span class="s2">(</span><span class="s1">parsedReviews</span><span class="s2">, </span><span class="s1">target</span><span class="s2">, </span><span class="s1">parsedReviews</span><span class="s2">.</span><span class="s1">count</span><span class="s2">())</span>
+  <span class="s0">val </span><span class="s1">informationGain </span><span class="s2">= </span><span class="s1">IG</span><span class="s2">(</span><span class="s1">parsedReviews</span><span class="s2">, </span><span class="s1">target</span><span class="s2">, </span><span class="s1">attribute</span><span class="s2">, </span><span class="s1">initialEntropy</span><span class="s2">)</span>
+
+  <span class="s1">println</span><span class="s2">(</span><span class="s3">s&quot;Information Gain for attribute </span><span class="s6">$</span><span class="s1">attribute </span><span class="s3">is: </span><span class="s6">$</span><span class="s1">informationGain</span><span class="s3">&quot;</span><span class="s2">)</span>
+
+  <span class="s4">// Compute the most common value of the target in the dataset</span>
+  <span class="s0">def </span><span class="s1">mostCommonValue</span><span class="s2">(</span><span class="s1">data: RDD</span><span class="s2">[</span><span class="s1">Review</span><span class="s2">], </span><span class="s1">target: String</span><span class="s2">, </span><span class="s1">totalDataSize: Long</span><span class="s2">)</span><span class="s1">: String </span><span class="s2">= {</span>
+    <span class="s0">if </span><span class="s2">(</span><span class="s1">totalDataSize &gt; </span><span class="s5">0</span><span class="s2">) {</span>
+      <span class="s0">val </span><span class="s1">attributeValueCountPairs </span><span class="s2">= </span><span class="s1">data</span><span class="s2">.</span><span class="s1">map</span><span class="s2">(</span><span class="s1">review </span><span class="s2">=&gt; (</span><span class="s1">Utils</span><span class="s2">.</span><span class="s1">getAttribute</span><span class="s2">(</span><span class="s1">review</span><span class="s2">, </span><span class="s1">target</span><span class="s2">), </span><span class="s5">1</span><span class="s2">))</span>
+      <span class="s0">val </span><span class="s1">countByAttributeValue </span><span class="s2">= </span><span class="s1">attributeValueCountPairs</span><span class="s2">.</span><span class="s1">reduceByKey</span><span class="s2">(</span><span class="s1">_ + _</span><span class="s2">)</span>
+      <span class="s0">val </span><span class="s1">sortedByCount </span><span class="s2">= </span><span class="s1">countByAttributeValue</span><span class="s2">.</span><span class="s1">sortBy</span><span class="s2">(</span><span class="s1">pair </span><span class="s2">=&gt; </span><span class="s1">pair</span><span class="s2">.</span><span class="s1">_2</span><span class="s2">, </span><span class="s1">ascending </span><span class="s2">= </span><span class="s0">false</span><span class="s2">)</span>
+      <span class="s0">val </span><span class="s1">mostCommonPair </span><span class="s2">= </span><span class="s1">sortedByCount</span><span class="s2">.</span><span class="s1">first</span><span class="s2">()</span>
+      <span class="s0">val </span><span class="s1">mostCommonValue </span><span class="s2">= </span><span class="s1">mostCommonPair</span><span class="s2">.</span><span class="s1">_1</span>
+
+      <span class="s1">mostCommonValue</span>
+    <span class="s2">} </span><span class="s0">else </span><span class="s2">{</span>
+      <span class="s3">&quot;unknown&quot; </span><span class="s4">// If there is no data, we cannot determine the most common attribute</span>
+    <span class="s2">}</span>
+  <span class="s2">}</span>
+
+  <span class="s0">val </span><span class="s1">mostCommonStarRating </span><span class="s2">= </span><span class="s1">mostCommonValue</span><span class="s2">(</span><span class="s1">parsedReviews</span><span class="s2">, </span><span class="s3">&quot;star_rating&quot;</span><span class="s2">, </span><span class="s1">parsedReviews</span><span class="s2">.</span><span class="s1">count</span><span class="s2">())</span>
+  <span class="s1">println</span><span class="s2">(</span><span class="s3">s&quot;The most common star rating is: </span><span class="s6">$</span><span class="s1">mostCommonStarRating</span><span class="s3">&quot;</span><span class="s2">)</span>
+
+  <span class="s0">def </span><span class="s1">ID3</span><span class="s2">(</span><span class="s1">data: RDD</span><span class="s2">[</span><span class="s1">Review</span><span class="s2">], </span><span class="s1">target: String</span><span class="s2">, </span><span class="s1">attributes: Array</span><span class="s2">[</span><span class="s1">String</span><span class="s2">], </span><span class="s1">threshold: Int</span><span class="s2">)</span><span class="s1">: DecisionTree </span><span class="s2">= {</span>
+    <span class="s4">// Total number of data points</span>
+    <span class="s0">val </span><span class="s1">totalDataSize </span><span class="s2">= </span><span class="s1">data</span><span class="s2">.</span><span class="s1">count</span><span class="s2">()</span>
+    <span class="s4">// Stop condition for the recursion.</span>
+    <span class="s4">// 1) If data size is less than threshold.</span>
+    <span class="s4">// 2) If attributes list is empty.</span>
+    <span class="s4">// 3) If entropy of the data is zero, meaning all the data points belong to the same class.</span>
+    <span class="s4">// Return a leaf node with the most common value in the data.</span>
+    <span class="s0">if </span><span class="s2">(</span><span class="s1">totalDataSize &lt; threshold || attributes</span><span class="s2">.</span><span class="s1">isEmpty || entropy</span><span class="s2">(</span><span class="s1">data</span><span class="s2">, </span><span class="s1">target</span><span class="s2">, </span><span class="s1">totalDataSize</span><span class="s2">) </span><span class="s1">== </span><span class="s5">0</span><span class="s2">) {</span>
+      <span class="s0">new </span><span class="s1">LeafTree</span><span class="s2">(</span><span class="s1">mostCommonValue</span><span class="s2">(</span><span class="s1">data</span><span class="s2">, </span><span class="s1">target</span><span class="s2">, </span><span class="s1">totalDataSize</span><span class="s2">))</span>
+    <span class="s2">}</span>
+    <span class="s0">else </span><span class="s2">{</span>
+      <span class="s4">// Compute initial entropy before the attribute selection</span>
+      <span class="s0">val </span><span class="s1">initialEntropy </span><span class="s2">= </span><span class="s1">entropy</span><span class="s2">(</span><span class="s1">data</span><span class="s2">, </span><span class="s1">target</span><span class="s2">, </span><span class="s1">totalDataSize</span><span class="s2">)</span>
+      <span class="s4">// Find the attribute that provides the maximum information gain when splitting the data based on it.</span>
+      <span class="s4">// Information gain for an attribute is computed as difference between current entropy and weighted entropy after the split.</span>
+      <span class="s0">val </span><span class="s1">attributeIGPairs </span><span class="s2">= </span><span class="s1">attributes</span><span class="s2">.</span><span class="s1">map</span><span class="s2">(</span><span class="s1">attribute </span><span class="s2">=&gt; (</span><span class="s1">IG</span><span class="s2">(</span><span class="s1">data</span><span class="s2">, </span><span class="s1">target</span><span class="s2">, </span><span class="s1">attribute</span><span class="s2">, </span><span class="s1">initialEntropy</span><span class="s2">), </span><span class="s1">attribute</span><span class="s2">))</span>
+      <span class="s4">// Select attribute with maximum information gain</span>
+      <span class="s0">val </span><span class="s1">attributeWithMaxIG </span><span class="s2">= </span><span class="s1">attributeIGPairs</span><span class="s2">.</span><span class="s1">maxBy</span><span class="s2">(</span><span class="s1">_</span><span class="s2">.</span><span class="s1">_1</span><span class="s2">).</span><span class="s1">_2</span>
+      <span class="s4">// Create a new decision tree node with the selected attribute</span>
+      <span class="s0">val </span><span class="s1">tree </span><span class="s2">= </span><span class="s0">new </span><span class="s1">DecisionTree</span><span class="s2">(</span><span class="s1">attributeWithMaxIG</span><span class="s2">)</span>
+      <span class="s4">// For each possible value of the chosen attribute, create a new branch in the tree</span>
+      <span class="s0">for </span><span class="s2">(</span><span class="s1">v &lt;- Utils</span><span class="s2">.</span><span class="s1">possibleValues</span><span class="s2">(</span><span class="s1">attributeWithMaxIG</span><span class="s2">)) {</span>
+        <span class="s4">// Filter the data for the current branch</span>
+        <span class="s0">val </span><span class="s1">filtered </span><span class="s2">= </span><span class="s1">data</span><span class="s2">.</span><span class="s1">filter</span><span class="s2">(</span><span class="s1">review </span><span class="s2">=&gt; </span><span class="s1">Utils</span><span class="s2">.</span><span class="s1">getAttribute</span><span class="s2">(</span><span class="s1">review</span><span class="s2">, </span><span class="s1">attributeWithMaxIG</span><span class="s2">) </span><span class="s1">== v</span><span class="s2">)</span>
+        <span class="s4">// In the recursive ID3 algorithm, persisting the filtered data in memory prevents the repeated and potentially</span>
+        <span class="s4">// inefficient recomputation of the filtering operation during each recursive call.</span>
+        <span class="s1">filtered</span><span class="s2">.</span><span class="s1">persist</span><span class="s2">()</span>
+        <span class="s4">// Call ID3 recursively for the filtered data and remaining attributes</span>
+        <span class="s0">val </span><span class="s1">subtree </span><span class="s2">= </span><span class="s1">ID3</span><span class="s2">(</span><span class="s1">filtered</span><span class="s2">, </span><span class="s1">target</span><span class="s2">, </span><span class="s1">attributes</span><span class="s2">.</span><span class="s1">filter</span><span class="s2">(</span><span class="s1">_ != attributeWithMaxIG</span><span class="s2">), </span><span class="s1">threshold</span><span class="s2">)</span>
+        <span class="s4">// Add the resulting subtree as a branch to the current tree node</span>
+        <span class="s1">tree</span><span class="s2">.</span><span class="s1">addSubTree</span><span class="s2">(</span><span class="s1">v</span><span class="s2">, </span><span class="s1">subtree</span><span class="s2">)</span>
+      <span class="s2">}</span>
+      <span class="s4">// Return the constructed decision tree</span>
+      <span class="s1">tree</span>
+    <span class="s2">}</span>
+  <span class="s2">}</span>
+
+  <span class="s0">val </span><span class="s1">weights </span><span class="s2">= </span><span class="s1">Array</span><span class="s2">(</span><span class="s5">0.8</span><span class="s2">, </span><span class="s5">0.2</span><span class="s2">)</span>
+
+  <span class="s4">// Use `randomSplit` to split the RDD into training and testing RDDs</span>
+  <span class="s0">val </span><span class="s1">Array</span><span class="s2">(</span><span class="s1">trainReviewsRDD</span><span class="s2">, </span><span class="s1">testReviewsRDD</span><span class="s2">) = </span><span class="s1">parsedReviews</span><span class="s2">.</span><span class="s1">randomSplit</span><span class="s2">(</span><span class="s1">weights</span><span class="s2">, </span><span class="s5">12345L</span><span class="s2">)</span>
+
+  <span class="s4">// Persist to use them multiple times data in memory for faster access</span>
+  <span class="s1">trainReviewsRDD</span><span class="s2">.</span><span class="s1">persist</span><span class="s2">()</span>
+  <span class="s1">testReviewsRDD</span><span class="s2">.</span><span class="s1">persist</span><span class="s2">()</span>
+
+  <span class="s0">val </span><span class="s1">target_id3 </span><span class="s2">= </span><span class="s3">&quot;helpful_vote&quot;</span>
+  <span class="s0">val </span><span class="s1">attributes </span><span class="s2">= </span><span class="s1">Array</span><span class="s2">(</span><span class="s3">&quot;star_rating&quot;</span><span class="s2">, </span><span class="s3">&quot;review_length&quot;</span><span class="s2">, </span><span class="s3">&quot;vine&quot;</span><span class="s2">, </span><span class="s3">&quot;verified_purchase&quot;</span><span class="s2">)</span>
+  <span class="s0">val </span><span class="s1">threshold </span><span class="s2">= </span><span class="s5">500</span>
+  <span class="s4">// make tree and compute execution time</span>
+  <span class="s0">val </span><span class="s1">startTime </span><span class="s2">= </span><span class="s1">System</span><span class="s2">.</span><span class="s1">currentTimeMillis</span><span class="s2">()</span>
+  <span class="s0">val </span><span class="s1">decisionTree </span><span class="s2">= </span><span class="s1">ID3</span><span class="s2">(</span><span class="s1">trainReviewsRDD</span><span class="s2">, </span><span class="s1">target_id3</span><span class="s2">, </span><span class="s1">attributes</span><span class="s2">, </span><span class="s1">threshold</span><span class="s2">)</span>
+  <span class="s0">val </span><span class="s1">executionTime </span><span class="s2">= </span><span class="s1">System</span><span class="s2">.</span><span class="s1">currentTimeMillis</span><span class="s2">() </span><span class="s1">- startTime</span>
+
+  <span class="s4">// Making predictions on the test data</span>
+  <span class="s0">val </span><span class="s1">predictionsRDD </span><span class="s2">= </span><span class="s1">testReviewsRDD</span>
+  <span class="s2">.</span><span class="s1">filter</span><span class="s2">(</span><span class="s1">review </span><span class="s2">=&gt; </span><span class="s1">review != </span><span class="s0">null</span><span class="s2">) </span><span class="s4">// Filtering out null values</span>
+  <span class="s2">.</span><span class="s1">map</span><span class="s2">(</span><span class="s1">review </span><span class="s2">=&gt; </span><span class="s1">decisionTree</span><span class="s2">.</span><span class="s1">predict</span><span class="s2">(</span><span class="s1">review</span><span class="s2">))</span>
+
+  <span class="s4">// Zipping the true values and predictions</span>
+  <span class="s0">val </span><span class="s1">trueValuesAndPredictions </span><span class="s2">= </span><span class="s1">testReviewsRDD</span><span class="s2">.</span><span class="s1">map</span><span class="s2">(</span><span class="s1">_</span><span class="s2">.</span><span class="s1">helpful_vote</span><span class="s2">).</span><span class="s1">zip</span><span class="s2">(</span><span class="s1">predictionsRDD</span><span class="s2">)</span>
+
+  <span class="s4">// Calculating accuracy</span>
+  <span class="s0">val </span><span class="s1">correctPredictionsCount </span><span class="s2">= </span><span class="s1">trueValuesAndPredictions</span><span class="s2">.</span><span class="s1">filter </span><span class="s2">{ </span><span class="s0">case </span><span class="s2">(</span><span class="s1">trueValue</span><span class="s2">, </span><span class="s1">prediction</span><span class="s2">) =&gt; </span><span class="s1">trueValue == prediction </span><span class="s2">}.</span><span class="s1">count</span>
+  <span class="s0">val </span><span class="s1">accuracy </span><span class="s2">= </span><span class="s1">correctPredictionsCount</span><span class="s2">.</span><span class="s1">toDouble / testReviewsRDD</span><span class="s2">.</span><span class="s1">count</span>
+
+  <span class="s1">println</span><span class="s2">(</span><span class="s3">s&quot;Accuracy: </span><span class="s6">$</span><span class="s1">accuracy</span><span class="s3">&quot;</span><span class="s2">)</span>
+  <span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;exectionTime:&quot;</span><span class="s2">,</span><span class="s1">executionTime</span><span class="s2">)</span>
+
+  <span class="s4">// write results to file</span>
+  <span class="s1">Files</span><span class="s2">.</span><span class="s1">write</span><span class="s2">(</span><span class="s1">Paths</span><span class="s2">.</span><span class="s1">get</span><span class="s2">(</span><span class="s3">&quot;results.txt&quot;</span><span class="s2">), (</span>
+      <span class="s3">&quot;accuracy:&quot; </span><span class="s1">+ accuracy</span><span class="s2">.</span><span class="s1">toString + </span><span class="s3">&quot; </span><span class="s0">\n</span><span class="s3">&quot; </span><span class="s1">+</span>
+      <span class="s3">&quot;tree:&quot; </span><span class="s1">+ decisionTree</span><span class="s2">.</span><span class="s1">toString + </span><span class="s3">&quot; </span><span class="s0">\n</span><span class="s3">&quot;</span><span class="s2">).</span><span class="s1">getBytes</span><span class="s2">(</span><span class="s1">StandardCharsets</span><span class="s2">.</span><span class="s1">UTF_8</span><span class="s2">))</span>
+<span class="s2">}</span></pre>
+</body>
+</html>

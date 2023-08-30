@@ -1,0 +1,47 @@
+accuracy:0.6763795856806991 
+tree:
+ DecisionTree(	verified_purchase = true : 
+ DecisionTree(	star_rating = low : 
+ DecisionTree(	review_length = short : 
+ DecisionTree(	vine = true : LeafTree: unknown )
+	vine = false : LeafTree: Not Helpful )
+ )
+	review_length = long : 
+ DecisionTree(	vine = true : LeafTree: unknown )
+	vine = false : LeafTree: Helpful )
+ )
+ )
+	star_rating = high : 
+ DecisionTree(	review_length = short : 
+ DecisionTree(	vine = true : LeafTree: unknown )
+	vine = false : LeafTree: Not Helpful )
+ )
+	review_length = long : 
+ DecisionTree(	vine = true : LeafTree: Helpful )
+	vine = false : LeafTree: Not Helpful )
+ )
+ )
+ )
+	verified_purchase = false : 
+ DecisionTree(	review_length = short : 
+ DecisionTree(	star_rating = low : 
+ DecisionTree(	vine = true : LeafTree: Helpful )
+	vine = false : LeafTree: Not Helpful )
+ )
+	star_rating = high : 
+ DecisionTree(	vine = true : LeafTree: Not Helpful )
+	vine = false : LeafTree: Not Helpful )
+ )
+ )
+	review_length = long : 
+ DecisionTree(	vine = true : 
+ DecisionTree(	star_rating = low : LeafTree: Helpful )
+	star_rating = high : LeafTree: Helpful )
+ )
+	vine = false : 
+ DecisionTree(	star_rating = low : LeafTree: Helpful )
+	star_rating = high : LeafTree: Helpful )
+ )
+ )
+ )
+ 
